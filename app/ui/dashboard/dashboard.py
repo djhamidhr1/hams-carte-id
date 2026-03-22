@@ -368,3 +368,98 @@ class Dashboard(QMainWindow):
 
     def _ts(self):
         return "QPushButton{background:#2a2a3e;color:white;border-radius:3px;font-size:11px;}QPushButton:checked{background:#7c9ef8;color:#0d0d1a;}QPushButton:hover{background:#3e3e6e;}"
+    def _build_db_panel(self):
+        from PyQt5.QtWidgets import (QTableWidget, QTableWidgetItem,
+            QHeaderView, QSplitter)
+
+        panel = QFrame()
+        panel.setFixedHeight(180)
+        panel.setStyleSheet("background:#13131f; border-top:2px solid #2e2e4e;")
+        layout = QVBoxLayout(panel)
+        layout.setContentsMargins(8, 6, 8, 6)
+        layout.setSpacing(4)
+
+        # Barre outils DB
+        toolbar = QHBoxLayout()
+        btn_load = self._btn("📂 Ajouter une base de données", "#7c9ef8", "#0d0d1a", h=28, pad=10)
+        btn_load.clicked.connect(self._load_db)
+        toolbar.addWidget(btn_load)
+
+        self.db_status = self._lbl("Aucune base de données chargée", "#555", 11)
+        toolbar.addWidget(self.db_status)
+        toolbar.addStretch()
+
+        self.col_combo = QComboBox()
+        self.col_combo.setFixedSize(160, 28)
+        self.col_combo.setStyleSheet(self._inp())
+        self.col_combo.setPlaceholderText("Lier colonne...")
+        toolbar.addWidget(self._lbl("Lier à :", "#888", 11))
+        toolbar.addWidget(self.col_combo)
+        layout.addLayout(toolbar)
+
+        # Table
+        self.db_table = QTableWidget()
+        self.db_table.setStyleSheet("""
+            QTableWidget {
+                background:#1a1a2e; color:white;
+                gridline-color:#2e2e4e; border:none;
+                font-size:12px;
+            }
+            QTableWidget::item:selected { background:#7c9ef8; color:#0d0d1a; }
+            QHeaderView::section {
+                background:#2a2a3e; color:#7c9ef8;
+                padding:4px; border:none;
+                font-size:11px; font-weight:bold;
+            }
+        """)
+        self.db_table.setAlternatingRowColors(True)
+        self.db_table.setSelectionBehavior(QTableWidget.SelectRows)
+        self.db_table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeToContents)
+        self.db_table.cellClicked.connect(self._on_row_click)
+        layout.addWidget(self.db_table)
+
+        self.db = None
+        return panel
+
+    def _load_db(self):
+        from PyQt5.QtWidgets import QFileDialog, QTableWidgetItem
+        from app.core.database import Database
+
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Ouvrir base de données", "",
+            "Fichiers données (*.xlsx *.xls *.csv)"
+        )
+        if not path:
+            return
+
+        self.db = Database()
+        if self.db.load(path):
+            df = self.db.get_all()
+            self.db_table.setColumnCount(len(df.columns))
+            self.db_table.setRowCount(len(df))
+            self.db_table.setHorizontalHeaderLabels(list(df.columns))
+
+            for i, row in df.iterrows():
+                for j, val in enumerate(row):
+                    item = QTableWidgetItem(str(val))
+                    item.setFlags(item.flags() & ~0x0002)
+                    self.db_table.setItem(i, j, item)
+
+            self.col_combo.clear()
+            self.col_combo.addItems(self.db.get_columns())
+            self.db_status.setText(
+                f"✅ {self.db.row_count()} enregistrements — {path.split('/')[-1]}"
+            )
+            self.db_status.setStyleSheet("color:#4caf50; font-size:11px;")
+
+    def _on_row_click(self, row, col):
+        if not self.db:
+            return
+        data = self.db.get_row(row)
+        from PyQt5.QtWidgets import QGraphicsTextItem
+        items = self.canvas.card_view.scene.selectedItems()
+        for item in items:
+            if isinstance(item, QGraphicsTextItem):
+                col_name = self.col_combo.currentText()
+                if col_name in data:
+                    item.setPlainText(str(data[col_name]))
