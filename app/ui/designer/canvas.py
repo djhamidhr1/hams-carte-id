@@ -1,9 +1,9 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
-    QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem)
+    QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem,
+    QGraphicsPixmapItem, QFileDialog)
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QPen, QBrush, QColor, QPainter, QFont
+from PyQt5.QtGui import QPen, QBrush, QColor, QPainter, QFont, QPixmap
 from ui.designer.rulers import Ruler, RULER_SIZE
-from PyQt5.QtWidgets import QSizePolicy
 
 CARD_W = 323
 CARD_H = 204
@@ -19,6 +19,15 @@ class DraggableText(QGraphicsTextItem):
         self.setDefaultTextColor(QColor("#000000"))
         self.setFont(QFont("Arial", 12))
 
+class DraggableImage(QGraphicsPixmapItem):
+    def __init__(self, pixmap):
+        super().__init__(pixmap)
+        self.setFlags(
+            QGraphicsPixmapItem.ItemIsMovable |
+            QGraphicsPixmapItem.ItemIsSelectable |
+            QGraphicsPixmapItem.ItemSendsGeometryChanges
+        )
+
 class CardView(QGraphicsView):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -32,6 +41,8 @@ class CardView(QGraphicsView):
 
     def set_tool(self, tool):
         self.current_tool = tool
+        if tool == "image":
+            self._import_image()
 
     def _draw_card(self):
         self.scene.clear()
@@ -44,6 +55,25 @@ class CardView(QGraphicsView):
         self.card.setPen(QPen(QColor("#cccccc"), 1))
         self.scene.addItem(self.card)
         self.setSceneRect(-40, -40, CARD_W+80, CARD_H+80)
+
+    def _import_image(self):
+        path, _ = QFileDialog.getOpenFileName(
+            self, "Importer une image", "",
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif *.webp)"
+        )
+        if path:
+            pixmap = QPixmap(path)
+            # Redimensionne si trop grande
+            if pixmap.width() > CARD_W or pixmap.height() > CARD_H:
+                pixmap = pixmap.scaled(
+                    CARD_W // 2, CARD_H // 2,
+                    Qt.KeepAspectRatio,
+                    Qt.SmoothTransformation
+                )
+            img_item = DraggableImage(pixmap)
+            img_item.setPos(10, 10)
+            self.scene.addItem(img_item)
+        self.current_tool = "select"
 
     def mousePressEvent(self, event):
         if self.current_tool == "text":
@@ -60,10 +90,6 @@ class Canvas(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setStyleSheet("background-color: #2a2a3e;")
-        self.setSizePolicy(
-            self.sizePolicy().Expanding,
-            self.sizePolicy().Expanding
-        )
 
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(0, 0, 0, 0)
