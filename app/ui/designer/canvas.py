@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout,
-    QGraphicsView, QGraphicsScene, QGraphicsRectItem, QGraphicsTextItem,
-    QGraphicsPixmapItem, QFileDialog)
+    QGraphicsView, QGraphicsScene, QGraphicsRectItem,
+    QGraphicsTextItem, QGraphicsPixmapItem, QFileDialog)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QPen, QBrush, QColor, QPainter, QFont, QPixmap
 from ui.designer.rulers import Ruler, RULER_SIZE
@@ -37,7 +37,14 @@ class CardView(QGraphicsView):
         self.setStyleSheet("background-color: #2a2a3e; border: none;")
         self.setAlignment(Qt.AlignCenter)
         self.current_tool = "select"
+        self.on_item_selected = None
         self._draw_card()
+        self.scene.selectionChanged.connect(self._on_selection)
+
+    def _on_selection(self):
+        items = self.scene.selectedItems()
+        if items and self.on_item_selected:
+            self.on_item_selected(items[0])
 
     def set_tool(self, tool):
         self.current_tool = tool
@@ -63,7 +70,6 @@ class CardView(QGraphicsView):
         )
         if path:
             pixmap = QPixmap(path)
-            # Redimensionne si trop grande
             if pixmap.width() > CARD_W or pixmap.height() > CARD_H:
                 pixmap = pixmap.scaled(
                     CARD_W // 2, CARD_H // 2,
@@ -98,12 +104,10 @@ class Canvas(QWidget):
         top_row = QHBoxLayout()
         top_row.setSpacing(0)
         top_row.setContentsMargins(0, 0, 0, 0)
-
         corner = QWidget()
         corner.setFixedSize(RULER_SIZE, RULER_SIZE)
         corner.setStyleSheet("background-color: #1a1a2e;")
         top_row.addWidget(corner)
-
         self.ruler_h = Ruler(Qt.Horizontal)
         top_row.addWidget(self.ruler_h, 1)
         main_layout.addLayout(top_row)
@@ -111,10 +115,8 @@ class Canvas(QWidget):
         center_row = QHBoxLayout()
         center_row.setSpacing(0)
         center_row.setContentsMargins(0, 0, 0, 0)
-
         self.ruler_v = Ruler(Qt.Vertical)
         center_row.addWidget(self.ruler_v)
-
         self.card_view = CardView()
         center_row.addWidget(self.card_view, 1)
         main_layout.addLayout(center_row, 1)
