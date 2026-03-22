@@ -1,3 +1,7 @@
+import sys
+import os
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__ + "/../..")))
+
 from PyQt5.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
     QHBoxLayout, QPushButton, QLabel, QFrame, QStackedWidget)
 from PyQt5.QtCore import Qt
@@ -210,10 +214,9 @@ class Dashboard(QMainWindow):
         main_area.setSpacing(0)
         main_area.setContentsMargins(0, 0, 0, 0)
 
-        toolbar = Toolbar()
-        main_area.addWidget(toolbar)
-
         self.canvas = Canvas()
+        toolbar = Toolbar(canvas=self.canvas)
+        main_area.addWidget(toolbar)
         main_area.addWidget(self.canvas)
 
         props = QFrame()
